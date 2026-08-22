@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/AobaIwaki123/lumiscrape'
-    targetRevision: main
+    targetRevision: release
     path: k8s/dashboard
   destination:
     server: 'https://kubernetes.default.svc'
