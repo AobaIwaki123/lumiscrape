@@ -6,13 +6,13 @@
 
 ## 開発コンセプト
 
-1. **OSS エコシステムの最大活用 (No Custom UI / No Wheel Reinvention)**:
-   - ジョブ実行基盤、Cron スケジューラー、URL 登録 UI、実行履歴・ログ可視化ダッシュボードにはオープンソースの **Estela** を全面的に採用し、自作 UI / スケジューラーの開発・保守コストを徹底排除。
+1. **軽量・堅牢な Kubernetes ネイティブ運用 (K8s Native & No Bloatware)**:
+   - 巨大で過剰な外部ミドルウェア（Kafka/MySQL/MongoDB等）を排除し、Kubernetes の Job/CronJob と MinIO S3 データレイクを直接活用する軽量な管理ダッシュボードを採用。
 2. **Raw 取り込みとパースの完全分離 (Separation of Ingestion & Extraction)**:
-   - **Raw 取り込み (Ingestion)**: サイトごとの個別 Spider 実装を不要化し、URL・パラメータ駆動の単一の **汎用クローラー (Generic Crawler)** で MinIO へ Gzip 保存。
+   - **Raw 取り込み (Ingestion)**: サイトごとの個別 Spider 実装を最小化し、URL・設定値の宣言のみで動作する共通基底 Spider (`BaseRawCrawler`) で MinIO へ Gzip 保存。
    - **データ抽出 (Extraction)**: MinIO に蓄積された Raw HTML からドメインモデル (`EventSchedule`) への構造化は、サイトごとに静的に戦略（機械的ルール vs LLM）を決定して適用。
 3. **Clean Architecture による責務の分離**:
-   - ドメイン層 (`src/core/`)、インフラ層 (`src/infrastructure/`)、アプリケーション層 (`src/scrapers/`) を分離し、長期的な保守性と拡張性を担保。
+   - ドメイン層 (`src/core/`)、インフラ層 (`src/infrastructure/`)、アプリケーション層 (`src/scrapers/`, `src/dashboard/`) を分離し、長期的な保守性と拡張性を担保。
 
 ---
 
@@ -35,20 +35,20 @@ Kubernetes 上にデータレイクと実行基盤を構築し、Raw データ�
 
 ---
 
-### フェーズ 2: 汎用 Raw 取り込み基盤と Estela オーケストレーション環境の確立
-サイト固有コードを不要化し、Estela プラットフォームの導入によって URL 登録・K8s ジョブ実行・一覧監視を整備。
+### フェーズ 2: Raw 取り込み基盤と K8s 管理ダッシュボードの確立
+サイト固有コードを最小化し、Kubernetes 上でのクローラー実行・URL 登録・状態可視化ダッシュボードを整備。
 
-- [ ] **1. 汎用 Raw 取り込みワーカーの実装 (`src/scrapers/generic_crawler.py`)**
-  - サイト固有 Spider の実装を不要化し、シード URL・巡回深度・ヘッダー等のパラメータ駆動で動作する汎用 Scrapy Spider
-  - 受信レスポンスを即座に MinIO へ Gzip 保存するミドルウェア連携
-- [ ] **2. Estela プラットフォームの Kubernetes デプロイ (`k8s/estela/`, `k8s/argocd/`)**
-  - Estela API, Celery Worker, Redis, K8s Deployer のマニフェスト作成と ArgoCD 連携
-  - スケジュールに応じて Kubernetes 上に Scrapy Pod を動的生成する実行環境の確立
-- [ ] **3. Estela Web UI による URL / ジョブ登録の運用確立**
-  - Estela Web (React UI) を用いたシード URL、巡回頻度（Cron）、引数の登録
-- [ ] **4. Estela Web UI による登録 URL 一覧 & 実行状態・ログ監視の確立**
-  - 登録ジョブ一覧、最終実行日時、成功/失敗ステータス、Pod 実行ログの一元可視化
-- [ ] **5. Browserless 動的レンダリングプロキシ連携 (`k8s/browserless/`)**
+- [x] **1. 共通 Raw 取り込み基盤 BaseRawCrawler & サンプル Spider の実装 (`src/scrapers/base_crawler.py`)**
+  - 5 行の定義のみで動作する共通基底 Spider および `=LOVE` サンプル Spider 実装
+- [ ] **2. 軽量 K8s 管理ダッシュボードの実装 (`src/dashboard/`)**
+  - **URL / サイト登録フォーム**: シード URL、巡回頻度（Cron）、サイト識別子の登録
+  - **一覧 & 監視画面**: 登録サイト一覧、MinIO 保存件数・最新取得状況の可視化
+  - **K8s Job コントローラー**: ブラウザからの「今すぐ実行」および K8s Job の起動・Pod ログ取得
+- [ ] **3. 管理ダッシュボードの Kubernetes デプロイ (`k8s/dashboard/`, `k8s/argocd/`)**
+  - FastAPI ダッシュボードの Deployment / Service / Ingress (`lumiscrape.aooba.net`)
+  - K8s RBAC（Job / Pod 実行権限）の付与
+  - ArgoCD Application 登録
+- [ ] **4. Browserless 動的レンダリングプロキシ連携 (`k8s/browserless/`)**
   - SPA や JavaScript 動的生成サイト向けのヘッドレスブラウザ連携
 
 ---
