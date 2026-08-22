@@ -59,6 +59,9 @@ class KubernetesCrawlerClient:
             ),
             client.V1EnvVar(name="MINIO_SECURE", value=os.getenv("MINIO_SECURE", "false")),
         ]
+        env_vars.append(
+            client.V1EnvVar(name="SCRAPY_SETTINGS_MODULE", value="scrapers.scrapy_project.settings")
+        )
         if url:
             env_vars.append(client.V1EnvVar(name="START_URL", value=url))
         if render_js:
@@ -68,6 +71,7 @@ class KubernetesCrawlerClient:
             name="crawler",
             image=self.image,
             image_pull_policy="Always",
+            working_dir="/app/src/scrapers/scrapy_project",
             command=["scrapy", "crawl", site_id],
             env=env_vars,
             resources=client.V1ResourceRequirements(
