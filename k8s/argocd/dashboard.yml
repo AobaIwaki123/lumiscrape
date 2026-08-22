@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: lumiscrape-dashboard
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/AobaIwaki123/lumiscrape'
+    targetRevision: main
+    path: k8s/dashboard
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: minio
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
