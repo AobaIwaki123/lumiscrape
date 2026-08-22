@@ -75,8 +75,14 @@ if ! git diff --cached --quiet; then
   git commit -m "chore(release): bump k8s manifest image tag to ${NEXT_TAG}"
 fi
 
-echo "Pushing staging branch ${STAGE_BRANCH} to origin..."
-git push -u --force origin "$STAGE_BRANCH"
+echo "Pushing staging branch ${STAGE_BRANCH} to origin with retry..."
+for attempt in 1 2 3; do
+  if git push -u --force origin "$STAGE_BRANCH"; then
+    break
+  fi
+  echo "Push failed on attempt $attempt, retrying in 2 seconds..."
+  sleep 2
+done
 
 PR_TITLE="release: 本番リリース ${NEXT_TAG} (${DATE})"
 
