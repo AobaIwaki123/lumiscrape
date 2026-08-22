@@ -13,8 +13,9 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'tools/**'
+      - 'scripts/**'
+      - '.github/**'
       - 'pyproject.toml'
-      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
@@ -23,8 +24,9 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'tools/**'
+      - 'scripts/**'
+      - '.github/**'
       - 'pyproject.toml'
-      - '.github/workflows/ci.yml'
 
 jobs:
   lint:
