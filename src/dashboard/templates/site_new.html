@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 shadow-sm">
+        <h2 class="text-lg font-bold text-slate-100 mb-6 flex items-center gap-2">
+            <i class="fa-solid fa-plus-circle text-indigo-400"></i> 新規クローラーサイト登録
+        </h2>
+
+        <form method="POST" action="/sites/new" class="space-y-5">
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    サイト識別子 (Site ID) <span class="text-rose-400">*</span>
+                </label>
+                <input type="text" name="site_id" required placeholder="例: equal_love"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 font-mono">
+                <p class="mt-1 text-xs text-slate-500">Spider名およびMinIOのプレフィックスとして使用されます（英数字とアンダースコア）。</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    サイト名 / タイトル <span class="text-rose-400">*</span>
+                </label>
+                <input type="text" name="name" required placeholder="例: =LOVE 公式スケジュール"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    シード URL <span class="text-rose-400">*</span>
+                </label>
+                <input type="url" name="url" required placeholder="https://example.com/schedule/"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 font-mono">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                    巡回スケジュール (Cron 式)
+                </label>
+                <input type="text" name="cron_schedule" value="0 */6 * * *"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 font-mono">
+                <p class="mt-1 text-xs text-slate-500">デフォルト: 6時間ごと (0 */6 * * *)</p>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+                <input type="checkbox" id="render_js" name="render_js" value="true"
+                       class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-indigo-500">
+                <label for="render_js" class="text-sm font-medium text-slate-300 cursor-pointer">
+                    Browserless による動的 JavaScript レンダリングを使用
+                </label>
+            </div>
+
+            <div class="pt-4 flex items-center justify-end gap-3">
+                <a href="/" class="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white transition">
+                    キャンセル
+                </a>
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow-md shadow-indigo-600/30 flex items-center gap-2">
+                    <i class="fa-solid fa-check text-xs"></i> 登録を保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
