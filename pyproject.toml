@@ -17,6 +17,11 @@ dependencies = [
     "google-genai>=0.1.0",
     "pyyaml>=6.0.1",
     "python-dotenv>=1.0.1",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "jinja2>=3.1.3",
+    "kubernetes>=29.0.0",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +32,7 @@ dev = [
     "mypy>=1.9.0",
     "ruff>=0.4.0",
     "types-PyYAML>=6.0.12",
+    "httpx>=0.27.0",
 ]
 
 [build-system]
@@ -34,7 +40,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/core", "src/infrastructure", "src/scrapers"]
+packages = ["src/core", "src/infrastructure", "src/scrapers", "src/dashboard"]
 
 [tool.ruff]
 line-length = 100
@@ -56,7 +62,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["core", "infrastructure", "scrapers"]
+known-first-party = ["core", "infrastructure", "scrapers", "dashboard"]
 
 [tool.mypy]
 mypy_path = "src"
@@ -78,6 +84,7 @@ module = [
     "google.*",
     "psycopg.*",
     "numpy.*",
+    "kubernetes.*",
 ]
 ignore_missing_imports = true
 
