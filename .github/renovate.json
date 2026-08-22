@@ -1,0 +1,44 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":automergeAll"
+  ],
+  "baseBranches": ["main"],
+  "prCreation": "immediate",
+  "automerge": true,
+  "automergeType": "auto",
+  "platformAutomerge": false,
+  "internalChecksFilter": "strict",
+  "ignoreTests": false,
+  "rebaseWhen": "auto",
+  "packageRules": [
+    {
+      "description": "Auto-merge all dependencies (major, minor, patch, pin, digest) after CI passes",
+      "matchPackagePatterns": ["*"],
+      "automerge": true,
+      "automergeType": "auto",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Group GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Group Python dependencies",
+      "matchManagers": ["pep621", "pip_requirements", "pip_setup", "pyproject"],
+      "groupName": "python dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Group Dockerfile base image updates",
+      "matchManagers": ["dockerfile"],
+      "groupName": "docker base images",
+      "automerge": true
+    }
+  ]
+}
