@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lumiscrape-dashboard
+  namespace: minio
+  labels:
+    app: lumiscrape-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lumiscrape-dashboard
+  template:
+    metadata:
+      labels:
+        app: lumiscrape-dashboard
+    spec:
+      serviceAccountName: lumiscrape-dashboard
+      containers:
+        - name: dashboard
+          image: ghcr.io/aobaiwaki123/lumiscrape:latest
+          imagePullPolicy: Always
+          command:
+            - uvicorn
+            - dashboard.app:app
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8080"
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: MINIO_ENDPOINT
+              value: "minio.minio.svc.cluster.local:9000"
+            - name: MINIO_ACCESS_KEY
+              value: "minioadmin"
+            - name: MINIO_SECRET_KEY
+              value: "minioadmin"
+            - name: MINIO_BUCKET_NAME
+              value: "lumiscrape-raw"
+            - name: MINIO_SECURE
+              value: "false"
+            - name: JOB_NAMESPACE
+              value: "minio"
+            - name: CRAWLER_IMAGE
+              value: "ghcr.io/aobaiwaki123/lumiscrape:latest"
+          volumeMounts:
+            - name: config-storage
+              mountPath: /app/configs/sites
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+      volumes:
+        - name: config-storage
+          persistentVolumeClaim:
+            claimName: lumiscrape-config-pvc
