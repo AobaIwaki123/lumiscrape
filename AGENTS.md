@@ -9,9 +9,9 @@
 - **`main` ブランチへの直接コミットおよび直接 Push は禁止**します。
 - **すべてのタスク作業は Git Worktree（`.worktrees/<branch-name>`）を作成して行います**。ルート作業領域（`main` 等）での直接作業は禁止します（`./scripts/worktree.sh create <branch-name>` を活用）。
 - **PR の単一責務の原則 (Single Responsibility PR)**: 各 PR は単一の明確な目的（バグ修正、機能追加、テスト追加、ドキュメント更新、CI/CD設定等）に限定し、無関係な変更の混在を禁止します。独立した改善は別ブランチを切って別 PR として起票します。
-- **PR タイトルは、リリースノートだけを見て何をやったかが一目で分かるように、具体的かつ明瞭な日本語で記述します**（例: `feat: Scrapy 用 MinIO Gzip 保存ミドルウェアの実装`, `feat: Crawl4AI と Gemini API による LLM フォールバック基盤の構築`）。
+- **PR タイトルは、リリースノートだけを見て何をやったかが一目で分かるように、具体的かつ明瞭な日本語で記述します**（例: `feat: インターフェース仕様書の自動生成スクリプトとCIドリフト検証の導入`）。
 - 複数ステップの開発を行う場合は、親ブランチからの Stacked PR（積み上げ型 PR）として作成します。
-- **エージェントによる PR の自律的なマージ・クローズは禁止**します。PR 作成と CI（Lint / Test / TypeCheck）の通過確認までを作業範囲とし、マージはユーザーのレビュー・判断に委ねます。
+- **エージェントによる PR の自律的なマージ・クローズは禁止**します。PR 作成と CI（Lint / Test / TypeCheck / DocDrift）の通過確認までを作業範囲とし、マージはユーザーのレビュー・判断に委ねます。
 
 ---
 
@@ -28,7 +28,19 @@
 
 ---
 
-## 3. ドキュメント規約
+## 3. ドキュメント自動生成とドリフト防止規約 (Doc Drift Prevention)
+
+- **インターフェースドキュメントの Single Source of Truth**:
+  - Pydantic スキーマ、ストレージ Protocol、DB クライアント、共通例外の仕様は、すべて [`docs/reference/interfaces.md`](docs/reference/interfaces.md) に集約して自動生成します。
+  - 手動での `docs/reference/interfaces.md` 直接編集は禁止します。
+- **型・スキーマ変更時の自動再生成**:
+  - `src/core/` や `src/infrastructure/` の型定義・Docstring を変更した際は、必ず `./scripts/generate-docs.sh` を実行してドキュメントを再生成し、コミットに含めます。
+- **CI によるドリフト検出**:
+  - `./scripts/verify-all.sh` および GitHub Actions CI において、`git diff --exit-code docs/reference/interfaces.md` による厳格な乖離チェックを実施します。未生成の差分が存在する場合、CI は失敗します。
+
+---
+
+## 4. ドキュメント・Mermaid 規約
 
 - README、ROADMAP、設計仕様書などの公式ドキュメントでは、**原則として絵文字（emoji）を使用しません**。
 - 清潔でプロフェッショナルな Markdown 記述を徹底します。
@@ -38,9 +50,9 @@
 
 ---
 
-## 4. 品質基準 (Quality Gate) & CI-Green 原則
+## 5. 品質基準 (Quality Gate) & CI-Green 原則
 
 - **CI が通るまで絶対にマージしない**:
-  - すべての PR は、GitHub Actions CI（`ruff check`, `ruff format`, `mypy`, `pytest`）が 100% PASS (Green) することを確認するまで、**絶対にマージを行ってはなりません**。
+  - すべての PR は、GitHub Actions CI（`Doc Drift Check`, `Ruff Check/Format`, `MyPy`, `Pytest`）が 100% PASS (Green) することを確認するまで、**絶対にマージを行ってはなりません**。
   - CI が `pending`（実行中）または `failure`（失敗）の状態でのマージは例外なく禁止します。
 - コミット・Push 前に必ず `./scripts/verify-all.sh` をローカルで実行し、事前検証を徹底します。

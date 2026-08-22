@@ -10,7 +10,6 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAIN_REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || echo "$REPO_DIR")"
-# If inside a worktree, find the main repo dir
 if git rev-parse --git-common-dir >/dev/null 2>&1; then
   COMMON_DIR="$(git rev-parse --git-common-dir)"
   PARENT_DIR="$(cd "$COMMON_DIR/.." && pwd)"
@@ -31,7 +30,19 @@ elif [[ -f "${PARENT_DIR}/.venv/bin/ruff" ]]; then
 fi
 
 echo "========================================================"
-echo "1. Checking Python Syntax & Code Formatting..."
+echo "1. Checking Interface Documentation Drift (generate-docs)..."
+echo "========================================================"
+./scripts/generate-docs.sh
+if ! git diff --exit-code docs/reference/interfaces.md; then
+  echo "Error: Uncommitted generated documentation drift detected!"
+  echo "Please run ./scripts/generate-docs.sh and commit docs/reference/interfaces.md"
+  exit 1
+fi
+echo "OK: Interface documentation is up to date with zero drift."
+echo ""
+
+echo "========================================================"
+echo "2. Checking Python Syntax & Code Formatting (Ruff)..."
 echo "========================================================"
 if [[ -n "$VENV_BIN" && -f "${VENV_BIN}/ruff" ]]; then
   "${VENV_BIN}/ruff" check src tests tools
@@ -48,7 +59,7 @@ fi
 echo ""
 
 echo "========================================================"
-echo "2. Running Static Type Check (MyPy)..."
+echo "3. Running Static Type Check (MyPy)..."
 echo "========================================================"
 if [[ -n "$VENV_BIN" && -f "${VENV_BIN}/mypy" ]]; then
   "${VENV_BIN}/mypy" src tests
@@ -62,7 +73,7 @@ fi
 echo ""
 
 echo "========================================================"
-echo "3. Running Unit Tests & Assertions..."
+echo "4. Running Unit Tests & Assertions (Pytest)..."
 echo "========================================================"
 if [[ -n "$VENV_BIN" && -f "${VENV_BIN}/pytest" ]]; then
   "${VENV_BIN}/pytest" -v tests
