@@ -29,7 +29,18 @@ class MinIORawStorageMiddleware:
     def process_response(
         self, request: Request, response: Response, spider: Any = None, **_kwargs: Any
     ) -> Response:
-        """Uploads raw response body to MinIO and attaches object key to request.meta."""
+        """Uploads raw response body to MinIO and attaches object key to request.meta.
+
+        Note: Some internal Scrapy responses (e.g. robots.txt fetches) are not
+        tied to a user request, so response.meta may raise AttributeError. In
+        those cases we skip MinIO upload silently and return the response as-is.
+        """
+        # Skip responses not tied to a request (e.g. internal robots.txt fetches)
+        try:
+            _ = response.meta
+        except AttributeError:
+            return response
+
         try:
             site_id = getattr(spider, "name", "unknown")
             raw_content_type = response.headers.get(b"Content-Type")
