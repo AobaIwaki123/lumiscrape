@@ -32,14 +32,15 @@ class MinIORawStorageMiddleware:
             site_id = getattr(spider, "name", "unknown")
             raw_content_type = response.headers.get(b"Content-Type")
             content_type = raw_content_type.decode("utf-8") if raw_content_type else "text/html"
-            object_key = self.storage.save_raw_response(
+            stored_meta = self.storage.save_raw_html(
                 site_id=site_id,
                 url=response.url,
-                body_bytes=response.body,
+                body=response.body,
                 status_code=response.status,
                 content_type=content_type,
             )
-            response.meta["raw_payload_key"] = object_key
+            response.meta["raw_payload_key"] = stored_meta.object_key
+            response.meta["storage_metadata"] = stored_meta
         except Exception as e:
             logger.warning("Failed to save raw response to MinIO: %s", e)
 
