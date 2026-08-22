@@ -6,8 +6,9 @@
 ## 目次
 - [1. ドメインスキーマ (core.schemas)](#1-ドメインスキーマ-coreschemas)
 - [2. ストレージプロトコル (infrastructure.storage_interface)](#2-ストレージプロトコル-infrastructurestorage_interface)
-- [3. データベース連携 (infrastructure.db_client)](#3-データベース連携-infrastructuredb_client)
-- [4. システム共通例外 (core.exceptions)](#4-システム共通例外-coreexceptions)
+- [3. クローラー基盤 (scrapers.base_crawler)](#3-クローラー基盤-scrapersbase_crawler)
+- [4. データベース連携 (infrastructure.db_client)](#4-データベース連携-infrastructuredb_client)
+- [5. システム共通例外 (core.exceptions)](#5-システム共通例外-coreexceptions)
 
 ---
 
@@ -92,7 +93,26 @@ Container for retrieved content and its attached metadata.
 
 ---
 
-## 3. データベース連携 (infrastructure.db_client)
+## 3. クローラー基盤 (scrapers.base_crawler)
+
+### `BaseRawCrawler` (Base Spider Class)
+
+Base spider for collecting raw HTML/JSON directly into MinIO data lake.
+
+Subclasses only need to define `name` and `start_urls`.
+All raw payload persistence, Gzip compression, and metadata storage
+are handled automatically by the attached downloader middleware.
+
+#### メソッド一覧
+
+- **`parse(self, response: Response, **_kwargs: Any) -> Generator[ScrapeMetadata, None, None]`**
+  - Default parse handler that yields the raw object metadata saved to MinIO.
+- **`start_requests(self) -> Generator[Request, None, None]`**
+  - Generates initial requests with optional JS rendering flag in meta.
+
+---
+
+## 4. データベース連携 (infrastructure.db_client)
 
 ### `PostgresClient` (Class)
 
@@ -107,7 +127,7 @@ Handles persistence of canonical data models into PostgreSQL.
 
 ---
 
-## 4. システム共通例外 (core.exceptions)
+## 5. システム共通例外 (core.exceptions)
 
 | 例外クラス名 | 継承元 | 説明 |
 | :--- | :--- | :--- |
