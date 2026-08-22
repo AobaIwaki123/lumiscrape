@@ -1,0 +1,6 @@
+cron_schedule: 0 */6 * * *
+enabled: true
+name: =LOVE (イコールラブ) 公式スケジュール
+render_js: false
+site_id: equal_love
+url: https://equal-love.jp/schedule/

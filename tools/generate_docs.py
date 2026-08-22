@@ -95,8 +95,9 @@ def main() -> None:
         "- [1. ドメインスキーマ (core.schemas)](#1-ドメインスキーマ-coreschemas)",
         "- [2. ストレージプロトコル (infrastructure.storage_interface)](#2-ストレージプロトコル-infrastructurestorage_interface)",
         "- [3. クローラー基盤 (scrapers.base_crawler)](#3-クローラー基盤-scrapersbase_crawler)",
-        "- [4. データベース連携 (infrastructure.db_client)](#4-データベース連携-infrastructuredb_client)",
-        "- [5. システム共通例外 (core.exceptions)](#5-システム共通例外-coreexceptions)",
+        "- [4. 管理ダッシュボード (dashboard.models & k8s_client)](#4-管理ダッシュボード-dashboardmodels--k8s_client)",
+        "- [5. データベース連携 (infrastructure.db_client)](#5-データベース連携-infrastructuredb_client)",
+        "- [6. システム共通例外 (core.exceptions)](#6-システム共通例外-coreexceptions)",
         "",
         "---",
         "",
@@ -127,18 +128,29 @@ def main() -> None:
     crawler_mod = importlib.import_module("scrapers.base_crawler")
     content.append(render_protocol_or_class(crawler_mod.BaseRawCrawler, label="Base Spider Class"))
 
-    # 4. infrastructure.db_client
+    # 4. dashboard
     content.append("---")
     content.append("")
-    content.append("## 4. データベース連携 (infrastructure.db_client)")
+    content.append("## 4. 管理ダッシュボード (dashboard.models & k8s_client)")
+    content.append("")
+    dashboard_models = importlib.import_module("dashboard.models")
+    content.append(render_pydantic_model(dashboard_models.SiteConfig))
+    content.append(render_pydantic_model(dashboard_models.JobExecutionRecord))
+    k8s_client_mod = importlib.import_module("dashboard.k8s_client")
+    content.append(render_protocol_or_class(k8s_client_mod.KubernetesCrawlerClient, label="Class"))
+
+    # 5. infrastructure.db_client
+    content.append("---")
+    content.append("")
+    content.append("## 5. データベース連携 (infrastructure.db_client)")
     content.append("")
     db_mod = importlib.import_module("infrastructure.db_client")
     content.append(render_protocol_or_class(db_mod.PostgresClient, label="Class"))
 
-    # 5. core.exceptions
+    # 6. core.exceptions
     content.append("---")
     content.append("")
-    content.append("## 5. システム共通例外 (core.exceptions)")
+    content.append("## 6. システム共通例外 (core.exceptions)")
     content.append("")
     exc_mod = importlib.import_module("core.exceptions")
     exceptions = [
