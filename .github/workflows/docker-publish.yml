@@ -10,9 +10,9 @@ on:
       - 'v*'
     paths:
       - 'Dockerfile'
-      - '**.go'
-      - 'go.mod'
-      - 'go.sum'
+      - 'src/**'
+      - 'tools/**'
+      - 'pyproject.toml'
       - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 
@@ -39,6 +39,9 @@ jobs:
             TAG="${REF_NAME#release-stage/}"
           else
             TAG=$(git tag -l 'v*' | sort -V | tail -n 1)
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="v1.0.0"
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Detected release container tag: ${TAG}"

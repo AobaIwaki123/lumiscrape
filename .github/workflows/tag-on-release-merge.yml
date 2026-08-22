@@ -24,13 +24,6 @@ jobs:
           ref: release
           fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          check-latest: true
-          cache: false
-
       - name: Calculate Next Version
         id: version
         run: |
@@ -57,14 +50,16 @@ jobs:
           git push origin "${TAG}"
           echo "Successfully pushed tag ${TAG}!"
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
+      - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+          gh release create "${TAG}" \
+            --title "Release ${TAG}" \
+            --notes "${PR_BODY}" \
+            --target release
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

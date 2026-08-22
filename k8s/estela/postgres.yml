@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: estela-postgres
+  namespace: estela
+  labels:
+    app: estela-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: estela-postgres
+  template:
+    metadata:
+      labels:
+        app: estela-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_DB
+              value: estela
+            - name: POSTGRES_USER
+              value: estela
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: estela-secrets
+                  key: db-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: estela-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: estela-postgres
+  namespace: estela
+  labels:
+    app: estela-postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app: estela-postgres

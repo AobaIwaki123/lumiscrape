@@ -54,26 +54,26 @@ def render_pydantic_model(cls: type[BaseModel]) -> str:
 
 
 def render_protocol_or_class(cls: type[Any], label: str = "Class / Protocol") -> str:
-    """Renders a Protocol or Class and its methods."""
+    """Renders a Protocol or Class and its explicitly defined methods."""
     doc = inspect.getdoc(cls) or ""
     lines = [
         f"### `{cls.__name__}` ({label})\n",
         f"{doc}\n",
     ]
 
+    # Only include methods defined directly on the class (ignore base Spider internals)
     methods = [
         (name, func)
-        for name, func in inspect.getmembers(cls, predicate=inspect.isfunction)
-        if not name.startswith("_")
+        for name, func in cls.__dict__.items()
+        if inspect.isfunction(func) and not name.startswith("_")
     ]
 
     if methods:
         lines.append("#### メソッド一覧\n")
-        for name, func in methods:
+        for name, func in sorted(methods, key=lambda x: x[0]):
             sig = str(inspect.signature(func))
-            # Clean module prefixes in signature
             sig = re.sub(r"[a-zA-Z0-9_\.]+\.([a-zA-Z0-9_]+)", r"\1", sig)
-            method_doc = (inspect.getdoc(func) or "").strip()
+            method_doc = (inspect.getdoc(func) or "").strip().split("\n")[0]
             lines.append(f"- **`{name}{sig}`**")
             if method_doc:
                 lines.append(f"  - {method_doc}")
@@ -94,8 +94,9 @@ def main() -> None:
         "## 目次",
         "- [1. ドメインスキーマ (core.schemas)](#1-ドメインスキーマ-coreschemas)",
         "- [2. ストレージプロトコル (infrastructure.storage_interface)](#2-ストレージプロトコル-infrastructurestorage_interface)",
-        "- [3. データベース連携 (infrastructure.db_client)](#3-データベース連携-infrastructuredb_client)",
-        "- [4. システム共通例外 (core.exceptions)](#4-システム共通例外-coreexceptions)",
+        "- [3. クローラー基盤 (scrapers.base_crawler)](#3-クローラー基盤-scrapersbase_crawler)",
+        "- [4. データベース連携 (infrastructure.db_client)](#4-データベース連携-infrastructuredb_client)",
+        "- [5. システム共通例外 (core.exceptions)](#5-システム共通例外-coreexceptions)",
         "",
         "---",
         "",
@@ -118,18 +119,26 @@ def main() -> None:
     content.append(render_pydantic_model(storage_mod.StoredObjectMetadata))
     content.append(render_pydantic_model(storage_mod.StoredPayload))
 
-    # 3. infrastructure.db_client
+    # 3. scrapers.base_crawler
     content.append("---")
     content.append("")
-    content.append("## 3. データベース連携 (infrastructure.db_client)")
+    content.append("## 3. クローラー基盤 (scrapers.base_crawler)")
+    content.append("")
+    crawler_mod = importlib.import_module("scrapers.base_crawler")
+    content.append(render_protocol_or_class(crawler_mod.BaseRawCrawler, label="Base Spider Class"))
+
+    # 4. infrastructure.db_client
+    content.append("---")
+    content.append("")
+    content.append("## 4. データベース連携 (infrastructure.db_client)")
     content.append("")
     db_mod = importlib.import_module("infrastructure.db_client")
     content.append(render_protocol_or_class(db_mod.PostgresClient, label="Class"))
 
-    # 4. core.exceptions
+    # 5. core.exceptions
     content.append("---")
     content.append("")
-    content.append("## 4. システム共通例外 (core.exceptions)")
+    content.append("## 5. システム共通例外 (core.exceptions)")
     content.append("")
     exc_mod = importlib.import_module("core.exceptions")
     exceptions = [
