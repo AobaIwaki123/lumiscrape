@@ -17,7 +17,13 @@ General-purpose web scraping and data integration platform using Scrapy, Estela,
 - **Browserless レンダリング分離**: 動的 SPA サイトのレンダリングを外部プロキシに委譲し、クローラーコンテナの軽量性を維持。
 - **Crawl4AI + LLM フォールバック**: セレクタ破損時の自動復旧（HTML の Markdown 化 ＋ Gemini API Structured Outputs による JSON 抽出とセレクタ修正提案）。
 
-詳細なアーキテクチャについては [docs/architecture.md](docs/architecture.md) を参照してください。
+---
+
+## 公式ドキュメント
+
+- **システムアーキテクチャ**: [docs/architecture.md](docs/architecture.md)
+- **インターフェース・型仕様書 (自動生成)**: [docs/reference/interfaces.md](docs/reference/interfaces.md)
+- **開発ロードマップ**: [ROADMAP.md](ROADMAP.md)
 
 ---
 
@@ -38,8 +44,14 @@ General-purpose web scraping and data integration platform using Scrapy, Estela,
 │       └── scrapy_project/       # Spiders, Middlewares, Pipelines
 │
 ├── tools/                        # 開発支援スクリプト群
+│   ├── generate_docs.py          # インターフェースドキュメント自動生成 CLI
 │   ├── rule_generator/           # LLM を用いた XPath/CSS セレクタ自動生成ツール
 │   └── local_tester.py           # ローカル Spider 単体実行スクリプト
+│
+├── docs/
+│   ├── architecture.md           # システムアーキテクチャ仕様書
+│   └── reference/
+│       └── interfaces.md         # ★ 自動生成インターフェース仕様書
 │
 ├── pyproject.toml                # パッケージ・依存関係管理 (uv / ruff / pytest / mypy)
 ├── Dockerfile                    # スクレイパー実行用コンテナイメージ定義
@@ -60,7 +72,10 @@ General-purpose web scraping and data integration platform using Scrapy, Estela,
 # 依存関係のインストール
 uv pip install -e ".[dev]"
 
-# 全テスト & リント検証
+# インターフェースドキュメントの生成
+./scripts/generate-docs.sh
+
+# 全テスト & リント & ドキュメントドリフト検証
 ./scripts/verify-all.sh
 
 # Spider のローカル単体実行テスト
@@ -76,7 +91,7 @@ python tools/local_tester.py equal_love
 | `MINIO_ENDPOINT` | `localhost:9000` | MinIO / S3 エンドポイント |
 | `MINIO_BUCKET_NAME` | `lumiscrape-raw` | 生データ保存先バケット名 |
 | `MINIO_ACCESS_KEY` | `minioadmin` | MinIO アクセスキー |
-| `MINIO_SECRET_KEY` | `minioadmin` | MinIO シークレットキー |
+| `MINIO_SECRET_KEY` | `minioadminpassword` | MinIO シークレットキー |
 | `DATABASE_URL` | `postgresql://lumiscrape:lumiscrape@localhost:5432/lumiscrape` | PostgreSQL 接続 DSN |
 | `GEMINI_API_KEY` | `""` | LLM フォールバック & ルール生成用 API キー |
 | `BROWSERLESS_URL` | `http://localhost:3000` | Browserless ヘッドレスブラウザ URL |
@@ -89,6 +104,7 @@ python tools/local_tester.py equal_love
 
 - **PR-Only 運用**: `main` ブランチへの直接作業は禁止。Git Worktree（`./scripts/worktree.sh`）を使用してトピックブランチで作業します。
 - **CI-Green 原則**: コミット・Push 前に必ず `./scripts/verify-all.sh` をパスさせてください。
+- **Doc Drift Check**: 型定義を変更した際は必ず `./scripts/generate-docs.sh` を実行してコミットに含めてください。
 
 ---
 
