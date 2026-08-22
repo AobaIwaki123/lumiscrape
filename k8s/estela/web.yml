@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: estela-web
+  namespace: estela
+  labels:
+    app: estela-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: estela-web
+  template:
+    metadata:
+      labels:
+        app: estela-web
+    spec:
+      containers:
+        - name: web
+          image: bitmaker/estela-web:latest
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: REACT_APP_API_BASE_URL
+              value: "https://estela.aooba.net/api/v1"
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: estela-web
+  namespace: estela
+  labels:
+    app: estela-web
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  selector:
+    app: estela-web
