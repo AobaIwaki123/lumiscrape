@@ -6,61 +6,72 @@
 
 ## 開発コンセプト
 
-1. **OSS エコシステムの最大活用**: Estela、Scrapy、Browserless、MinIO などの強力な OSS を組み合わせ、自作コード（車輪の再発明）を最小化。
-2. **Clean Architecture による責務の分離**: ドメイン（型）、インフラ（外部連携）、アプリケーション（クローラー）を明確に分離し、長期的な保守性と拡張性を担保。
-3. **機械処理の高速性と LLM の柔軟性の両立**: 通常時は Scrapy の CSS/XPath による高速バッチ処理を行い、セレクタ破損時のみ Crawl4AI + Gemini API による自己修復フォールバックを発動。
+1. **OSS エコシステムの最大活用 (No Custom UI / No Wheel Reinvention)**:
+   - ジョブ実行基盤、Cron スケジューラー、URL 登録 UI、実行履歴・ログ可視化ダッシュボードにはオープンソースの **Estela** を全面的に採用し、自作 UI / スケジューラーの開発・保守コストを徹底排除。
+2. **Raw 取り込みとパースの完全分離 (Separation of Ingestion & Extraction)**:
+   - **Raw 取り込み (Ingestion)**: サイトごとの個別 Spider 実装を不要化し、URL・パラメータ駆動の単一の **汎用クローラー (Generic Crawler)** で MinIO へ Gzip 保存。
+   - **データ抽出 (Extraction)**: MinIO に蓄積された Raw HTML からドメインモデル (`EventSchedule`) への構造化は、サイトごとに静的に戦略（機械的ルール vs LLM）を決定して適用。
+3. **Clean Architecture による責務の分離**:
+   - ドメイン層 (`src/core/`)、インフラ層 (`src/infrastructure/`)、アプリケーション層 (`src/scrapers/`) を分離し、長期的な保守性と拡張性を担保。
 
 ---
 
 ## フェーズ一覧
 
-### フェーズ 1: インフラ基盤とデータレイクの確立
-Kubernetes 上にデータレイクと実行基盤を構築し、Raw データの蓄積を開始。
+### フェーズ 1: データレイクとインフラ基盤の確立【完了】
+Kubernetes 上にデータレイクと実行基盤を構築し、Raw データの蓄積およびドキュメント自動生成基盤を確立。
 
-- [ ] **MinIO デプロイと ILM 設定 (`k8s/minio`)**
-  - MinIO の Kubernetes マニフェスト作成
-  - 7日間保持後に自動物理削除する ILM (Lifecycle) ルール設定
-- [ ] **Scrapy MinIO Gzip 保存ミドルウェアの実装 (`src/infrastructure/minio_client.py`)**
-  - レスポンスをフックし、Gzip 圧縮ストリームで MinIO へ即時アップロード
-  - メタデータ（URL、ステータス、取得日時）の付与
-- [ ] **PostgreSQL マスター DB 連携 (`src/infrastructure/db_client.py`)**
-  - `event_schedules` テーブルの自動マイグレーションと Upsert ロジック
-
----
-
-### フェーズ 2: オーケストレーションと実行環境の統合
-Estela プラットフォームおよび Browserless を導入し、ジョブ管理と動的レンダリングを整備。
-
-- [ ] **Estela プラットフォームのデプロイ (`k8s/estela`)**
-  - Estela API, Web UI, Redis, Celery ワーカーの Kubernetes デプロイ
-  - Scrapy プロジェクトの Estela 連携設定 (`scrapy.cfg`)
-- [ ] **Browserless プロキシ連携 (`k8s/browserless`)**
-  - 動的 SPA サイト用のヘッダ/プロキシミドルウェア整備
-- [ ] **サイト固有 Spider の実装 (`src/scrapers/scrapy_project/spiders/`)**
-  - 対象サイト（例: equal-love 等）の機械的セレクタ Spider 実装
-  - Pydantic バリデーションパイプラインとの連携
+- [x] **MinIO データレイクデプロイと 7日間 ILM 設定 (`k8s/minio/`, `k8s/argocd/`)**
+  - Rook-Ceph (`ceph-rbd` 20Gi) バックエンドの MinIO サーバー構築
+  - 7日間保持後に自動物理削除する ILM (Lifecycle) ルール適用 Job
+  - ArgoCD による GitOps 自動同期管理
+- [x] **Raw データ保存用 In/Out インターフェース実装 (`src/infrastructure/storage_interface.py`, `minio_client.py`)**
+  - `RawStorageClient` Protocol (In/Out 抽象契約)
+  - Gzip 圧縮ストリーム保存・自動解凍取得・AWS SigV4 整合メタデータ管理
+  - Scrapy ミドルウェア (`MinIORawStorageMiddleware`) 連携
+- [x] **インターフェース仕様書の自動生成 & CI ドリフト検証 (`tools/generate_docs.py`, `docs/reference/interfaces.md`)**
+  - ソースコード AST & Pydantic 反射による仕様書 1 箇所集約生成
+  - `verify-all.sh` および CI での乖離（ドリフト）防止チェック
 
 ---
 
-### フェーズ 3: 自律的 LLM フォールバックとルール生成基盤
-セレクタ破損時の自動復旧パイプラインと開発支援ツールを構築。
+### フェーズ 2: 汎用 Raw 取り込み基盤と Estela オーケストレーション環境の確立
+サイト固有コードを不要化し、Estela プラットフォームの導入によって URL 登録・K8s ジョブ実行・一覧監視を整備。
 
-- [ ] **Crawl4AI によるデータ浄化 (`src/infrastructure/llm_fallback/crawl4ai_runner.py`)**
-  - 生 HTML から不要 DOM を除去し、クリーンな Markdown を生成
-- [ ] **Gemini API Structured Outputs による抽出 (`src/infrastructure/llm_fallback/prompt_manager.py`)**
-  - Pydantic スキーマに基づく構造化 JSON 抽出
-  - 1日あたりの呼び出し回数リミッター（ガードレール）
-- [ ] **XPath / CSS セレクタ自動生成ツール (`tools/rule_generator/`)**
-  - 破損アラート検知時の Slack 通知
-  - ローカルで最新 HTML からセレクタ修正案を自動提示する CLI ツール
+- [ ] **1. 汎用 Raw 取り込みワーカーの実装 (`src/scrapers/generic_crawler.py`)**
+  - サイト固有 Spider の実装を不要化し、シード URL・巡回深度・ヘッダー等のパラメータ駆動で動作する汎用 Scrapy Spider
+  - 受信レスポンスを即座に MinIO へ Gzip 保存するミドルウェア連携
+- [ ] **2. Estela プラットフォームの Kubernetes デプロイ (`k8s/estela/`, `k8s/argocd/`)**
+  - Estela API, Celery Worker, Redis, K8s Deployer のマニフェスト作成と ArgoCD 連携
+  - スケジュールに応じて Kubernetes 上に Scrapy Pod を動的生成する実行環境の確立
+- [ ] **3. Estela Web UI による URL / ジョブ登録の運用確立**
+  - Estela Web (React UI) を用いたシード URL、巡回頻度（Cron）、引数の登録
+- [ ] **4. Estela Web UI による登録 URL 一覧 & 実行状態・ログ監視の確立**
+  - 登録ジョブ一覧、最終実行日時、成功/失敗ステータス、Pod 実行ログの一元可視化
+- [ ] **5. Browserless 動的レンダリングプロキシ連携 (`k8s/browserless/`)**
+  - SPA や JavaScript 動的生成サイト向けのヘッドレスブラウザ連携
 
 ---
 
-### フェーズ 4: 運用監視と拡張性テスト
+### フェーズ 3: サイト別パース戦略（静的ルール vs LLM）と自律修復基盤
+MinIO に蓄積された Raw HTML から正規化ドメインモデル (`EventSchedule`) への抽出処理を実装。
+
+- [ ] **1. 静的ルール・パーサーエンジン (`src/parsers/mechanical/`)**
+  - 安定したサイト向けの XPath / CSS セレクタ定義駆動による機械的抽出エンジン
+- [ ] **2. LLM パーサーエンジン (`src/infrastructure/llm_fallback/`)**
+  - 複雑・動的サイト向けの Crawl4AI ノイズ除去 ＋ Gemini API Structured Outputs による構造化抽出
+  - 呼び出し回数リミッター（ガードレール）
+- [ ] **3. PostgreSQL マスター DB 連携 (`src/infrastructure/db_client.py`)**
+  - `event_schedules` テーブルのスキーマ管理と Upsert ロジック
+- [ ] **4. セレクタ自動修復 CLI ツール (`tools/rule_generator/`)**
+  - 静的ルール破損時の通知と、最新 Raw HTML からセレクタ修正案を自動生成・提示する支援ツール
+
+---
+
+### フェーズ 4: 運用監視・アラートと実サイト展開
 複数サイトへのスケールアウトと運用監視を確立。
 
-- [ ] **Estela ダッシュボードによる運用監視**
-  - ジョブログ、成功/失敗率、所要時間の可視化
-- [ ] **Slack アラート連携**
-  - パース失敗・フォールバック発動時の通知
-- [ ] **10+ サイトへの Spider 拡張と CI/CD パイプライン検証**
+- [ ] **Slack アラート通知連携**
+  - クロール失敗・パースエラー・LLM フォールバック発動時の自動通知
+- [ ] **10+ サイトへの汎用クローラー適用 & パース検証**
+  - 実運用サイトの登録とデータ抽出パイプラインの結合テスト

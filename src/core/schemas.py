@@ -26,10 +26,10 @@ class EventSchedule(BaseModel):
 class ScrapeMetadata(BaseModel):
     """Metadata attached to raw crawled data stored in MinIO."""
 
-    site_id: str
-    url: str
-    status_code: int
-    content_type: str
-    fetched_at: datetime
-    content_length: int
-    is_gzipped: bool = True
+    site_id: str = Field(description="Identifier for the source website")
+    url: str = Field(description="Original scraped URL")
+    status_code: int = Field(default=200, description="HTTP response status code")
+    content_type: str = Field(default="text/html", description="HTTP Content-Type header")
+    fetched_at: datetime = Field(description="Timestamp when payload was fetched")
+    content_length: int = Field(description="Compressed payload size in bytes")
+    is_gzipped: bool = Field(default=True, description="Whether the payload is Gzip compressed")

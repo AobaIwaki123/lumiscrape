@@ -13,8 +13,10 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'tools/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - '.github/**'
       - 'pyproject.toml'
-      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
@@ -23,12 +25,14 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'tools/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - '.github/**'
       - 'pyproject.toml'
-      - '.github/workflows/ci.yml'
 
 jobs:
-  lint:
-    name: Lint & Format Check
+  lint-and-drift:
+    name: Lint, Format & Doc Drift Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -46,6 +50,11 @@ jobs:
 
       - name: Install dependencies
         run: uv pip install --system ".[dev]"
+
+      - name: Verify Interface Documentation Drift
+        run: |
+          ./scripts/generate-docs.sh
+          git diff --exit-code docs/reference/interfaces.md
 
       - name: Run Ruff Linter
         run: ruff check src tests tools
