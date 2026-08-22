@@ -7,8 +7,9 @@
 - [1. ドメインスキーマ (core.schemas)](#1-ドメインスキーマ-coreschemas)
 - [2. ストレージプロトコル (infrastructure.storage_interface)](#2-ストレージプロトコル-infrastructurestorage_interface)
 - [3. クローラー基盤 (scrapers.base_crawler)](#3-クローラー基盤-scrapersbase_crawler)
-- [4. データベース連携 (infrastructure.db_client)](#4-データベース連携-infrastructuredb_client)
-- [5. システム共通例外 (core.exceptions)](#5-システム共通例外-coreexceptions)
+- [4. 管理ダッシュボード (dashboard.models & k8s_client)](#4-管理ダッシュボード-dashboardmodels--k8s_client)
+- [5. データベース連携 (infrastructure.db_client)](#5-データベース連携-infrastructuredb_client)
+- [6. システム共通例外 (core.exceptions)](#6-システム共通例外-coreexceptions)
 
 ---
 
@@ -112,7 +113,52 @@ are handled automatically by the attached downloader middleware.
 
 ---
 
-## 4. データベース連携 (infrastructure.db_client)
+## 4. 管理ダッシュボード (dashboard.models & k8s_client)
+
+### `SiteConfig` (Pydantic Model)
+
+Configuration for a registered crawling target site.
+
+| フィールド | 型 | デフォルト値 | 説明 |
+| :--- | :--- | :--- | :--- |
+| `site_id` | `str` | *必須* | Unique site identifier (e.g. equal_love) |
+| `name` | `str` | *必須* | Human readable site title |
+| `url` | `str` | *必須* | Seed URL to crawl |
+| `cron_schedule` | `str | None` | `0 */6 * * *` | Cron schedule expression |
+| `render_js` | `bool` | `False` | Whether to use Browserless rendering |
+| `enabled` | `bool` | `True` | Whether automated crawling is enabled |
+| `minio_object_count` | `int` | `0` | Total raw objects stored in MinIO |
+| `last_fetched_at` | `datetime | None` | `None` | Timestamp of most recent crawl |
+
+### `JobExecutionRecord` (Pydantic Model)
+
+Execution status and metadata of a Kubernetes crawler Job.
+
+| フィールド | 型 | デフォルト値 | 説明 |
+| :--- | :--- | :--- | :--- |
+| `job_name` | `str` | *必須* | Kubernetes Job name |
+| `site_id` | `str` | *必須* | Target site identifier |
+| `status` | `str` | *必須* | Job status: Pending, Running, Completed, Failed |
+| `started_at` | `datetime | None` | `None` | Job start timestamp |
+| `completed_at` | `datetime | None` | `None` | Job completion timestamp |
+| `duration_seconds` | `int | None` | `None` | Execution duration in seconds |
+
+### `KubernetesCrawlerClient` (Class)
+
+Manages Kubernetes crawler Jobs and retrieves live execution logs.
+
+#### メソッド一覧
+
+- **`get_job_logs(self, job_name: str) -> str`**
+  - Fetch stdout/stderr execution logs from the Pod belonging to a Job.
+- **`list_jobs(self, limit: int = 20) -> list[JobExecutionRecord]`**
+  - List recently executed crawler Jobs with their current status.
+- **`trigger_job(self, site_id: str, url: str | None = None, render_js: bool = False) -> str`**
+  - Trigger a new Scrapy crawling Job on Kubernetes.
+
+---
+
+## 5. データベース連携 (infrastructure.db_client)
 
 ### `PostgresClient` (Class)
 
@@ -127,7 +173,7 @@ Handles persistence of canonical data models into PostgreSQL.
 
 ---
 
-## 5. システム共通例外 (core.exceptions)
+## 6. システム共通例外 (core.exceptions)
 
 | 例外クラス名 | 継承元 | 説明 |
 | :--- | :--- | :--- |

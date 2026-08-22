@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}lumiscrape - Kubernetes Scraper Dashboard{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="h-full flex flex-col font-sans antialiased">
+    <!-- Navbar -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-spider text-sm"></i>
+                </div>
+                <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+                    lumiscrape
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">
+                    K8s Native
+                </span>
+            </div>
+            <nav class="flex items-center space-x-6 text-sm font-medium">
+                <a href="/" class="text-slate-300 hover:text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-globe text-xs"></i> サイト一覧
+                </a>
+                <a href="/jobs" class="text-slate-300 hover:text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check text-xs"></i> ジョブ履歴・ログ
+                </a>
+                <a href="/sites/new" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg transition shadow-md shadow-indigo-600/20 flex items-center gap-1.5 text-xs font-semibold">
+                    <i class="fa-solid fa-plus text-xs"></i> サイト登録
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
+        lumiscrape &bull; Kubernetes &amp; MinIO Data Lake Web Scraping Platform
+    </footer>
+</body>
+</html>
