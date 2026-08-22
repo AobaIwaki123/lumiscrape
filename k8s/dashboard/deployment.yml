@@ -20,7 +20,7 @@ spec:
       serviceAccountName: lumiscrape-dashboard
       containers:
         - name: dashboard
-          image: ghcr.io/aobaiwaki123/lumiscrape:v1.10.0
+          image: ghcr.io/aobaiwaki123/lumiscrape:v1.11.0
           imagePullPolicy: Always
           command:
             - uvicorn
@@ -36,9 +36,15 @@ spec:
             - name: MINIO_ENDPOINT
               value: "minio.minio.svc.cluster.local:9000"
             - name: MINIO_ACCESS_KEY
-              value: "minioadmin"
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: root-user
             - name: MINIO_SECRET_KEY
-              value: "minioadmin"
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: root-password
             - name: MINIO_BUCKET_NAME
               value: "lumiscrape-raw"
             - name: MINIO_SECURE
@@ -46,7 +52,7 @@ spec:
             - name: JOB_NAMESPACE
               value: "minio"
             - name: CRAWLER_IMAGE
-              value: "ghcr.io/aobaiwaki123/lumiscrape:v1.10.0"
+              value: "ghcr.io/aobaiwaki123/lumiscrape:v1.11.0"
           volumeMounts:
             - name: config-storage
               mountPath: /app/configs/sites
