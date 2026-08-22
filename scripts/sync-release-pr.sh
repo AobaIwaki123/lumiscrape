@@ -27,8 +27,18 @@ RELEASE_NOTES_ITEMS=""
 if [ -n "$MERGED_PRS" ]; then
   while read -r pr_ref; do
     if [ -n "$pr_ref" ]; then
-      RELEASE_NOTES_ITEMS="${RELEASE_NOTES_ITEMS}
-- ${pr_ref}"
+      pr_num="${pr_ref#\#}"
+      pr_title=""
+      if command -v gh &>/dev/null; then
+        pr_title=$(gh pr view "$pr_num" --json title --jq '.title' 2>/dev/null || true)
+      fi
+      if [ -n "$pr_title" ]; then
+        RELEASE_NOTES_ITEMS="${RELEASE_NOTES_ITEMS}
+- #${pr_num}: ${pr_title}"
+      else
+        RELEASE_NOTES_ITEMS="${RELEASE_NOTES_ITEMS}
+- #${pr_num}"
+      fi
     fi
   done <<< "$MERGED_PRS"
 fi
