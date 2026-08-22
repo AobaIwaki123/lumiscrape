@@ -53,12 +53,13 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          PR_BODY="${{ github.event.pull_request.body }}"
+          echo "$PR_BODY" > /tmp/release_notes.md
           gh release create "${TAG}" \
             --title "Release ${TAG}" \
-            --notes "${PR_BODY}" \
+            --notes-file /tmp/release_notes.md \
             --target release
 
       - name: Set up QEMU
