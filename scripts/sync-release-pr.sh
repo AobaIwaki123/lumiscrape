@@ -72,15 +72,16 @@ echo "Merging origin/main into staging branch..."
 git merge -X theirs origin/main -m "chore: sync main into ${STAGE_BRANCH}"
 
 echo "Updating Kubernetes manifests to release version ${NEXT_TAG} on ${STAGE_BRANCH}..."
-if [[ -f "k8s/manifests/deployment.yml" ]]; then
-  sed -i.bak -E "s|(image: ghcr\.io/aobaiwaki123/lumiscrape:).*|\1${NEXT_TAG}|" k8s/manifests/deployment.yml
+if [[ -f "k8s/dashboard/deployment.yml" ]]; then
+  sed -i.bak -E "s|(image: ghcr\.io/aobaiwaki123/lumiscrape:).*|\1${NEXT_TAG}|" k8s/dashboard/deployment.yml
+  sed -i.bak -E "s|(value: \"ghcr\.io/aobaiwaki123/lumiscrape:).*|\1${NEXT_TAG}\"|" k8s/dashboard/deployment.yml
 fi
-if [[ -f "k8s/manifests/kustomization.yml" ]]; then
-  sed -i.bak -E "s/(newTag: ).*/\1${NEXT_TAG}/" k8s/manifests/kustomization.yml
+if [[ -f "k8s/dashboard/kustomization.yml" ]]; then
+  sed -i.bak -E "s/(newTag: ).*/\1${NEXT_TAG}/" k8s/dashboard/kustomization.yml
 fi
-rm -f k8s/manifests/*.bak
+rm -f k8s/dashboard/*.bak
 
-git add k8s/manifests/deployment.yml k8s/manifests/kustomization.yml 2>/dev/null || true
+git add k8s/dashboard/deployment.yml k8s/dashboard/kustomization.yml 2>/dev/null || true
 if ! git diff --cached --quiet; then
   git commit -m "chore(release): bump k8s manifest image tag to ${NEXT_TAG}"
 fi

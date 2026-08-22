@@ -18,7 +18,7 @@ spec:
       serviceAccountName: lumiscrape-dashboard
       containers:
         - name: dashboard
-          image: ghcr.io/aobaiwaki123/lumiscrape:latest
+          image: ghcr.io/aobaiwaki123/lumiscrape:v1.7.0
           imagePullPolicy: Always
           command:
             - uvicorn
@@ -44,7 +44,7 @@ spec:
             - name: JOB_NAMESPACE
               value: "minio"
             - name: CRAWLER_IMAGE
-              value: "ghcr.io/aobaiwaki123/lumiscrape:latest"
+              value: "ghcr.io/aobaiwaki123/lumiscrape:v1.7.0"
           volumeMounts:
             - name: config-storage
               mountPath: /app/configs/sites
