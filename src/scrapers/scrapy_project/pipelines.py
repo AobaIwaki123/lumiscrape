@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class PydanticValidationPipeline:
     """Validates scraped event records against canonical Pydantic model."""
 
-    def process_item(self, item: Any, _spider: Any) -> Any:
+    def process_item(self, item: Any, _spider: Any = None) -> Any:
         if isinstance(item, EventItem):
             event = item.get("event_model")
             if not isinstance(event, EventSchedule):
@@ -28,13 +28,13 @@ class PostgresPersistencePipeline:
     def __init__(self) -> None:
         self.db = PostgresClient()
 
-    def open_spider(self, _spider: Any) -> None:
+    def open_spider(self, _spider: Any = None) -> None:
         try:
             self.db.init_tables()
         except Exception as e:
             logger.warning("Could not initialize DB tables on open_spider: %s", e)
 
-    def process_item(self, item: Any, _spider: Any) -> Any:
+    def process_item(self, item: Any, _spider: Any = None) -> Any:
         if isinstance(item, EventItem):
             event = item.get("event_model")
             if isinstance(event, EventSchedule):
