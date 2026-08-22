@@ -26,7 +26,9 @@ class MinIORawStorageMiddleware:
     def spider_opened(self, spider: Any) -> None:
         logger.info("MinIORawStorageMiddleware initialized for spider: %s", spider.name)
 
-    def process_response(self, _request: Request, response: Response, spider: Any) -> Response:
+    def process_response(
+        self, request: Request, response: Response, spider: Any = None, **_kwargs: Any
+    ) -> Response:
         """Uploads raw response body to MinIO and attaches object key to request.meta."""
         try:
             site_id = getattr(spider, "name", "unknown")
@@ -39,6 +41,7 @@ class MinIORawStorageMiddleware:
                 status_code=response.status,
                 content_type=content_type,
             )
+            request.meta["raw_payload_key"] = stored_meta.object_key
             response.meta["raw_payload_key"] = stored_meta.object_key
             response.meta["storage_metadata"] = stored_meta
         except Exception as e:
