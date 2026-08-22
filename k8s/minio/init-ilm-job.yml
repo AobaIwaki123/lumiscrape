@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-ilm-init
+  namespace: minio
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: minio-mc-setup
+          image: quay.io/minio/mc:latest
+          command:
+            - /bin/sh
+            - -ce
+            - |
+              echo "Waiting for MinIO server..."
+              until /usr/bin/mc alias set local http://minio.minio.svc.cluster.local:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do
+                sleep 2
+              done
+              echo "Creating bucket 'lumiscrape-raw'..."
+              /usr/bin/mc mb --ignore-existing local/lumiscrape-raw
+              echo "Configuring 7-day ILM retention policy..."
+              /usr/bin/mc ilm rule add --expire-days 7 local/lumiscrape-raw || true
+              echo "MinIO bucket and ILM configured successfully!"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: root-password
