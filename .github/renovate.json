@@ -10,7 +10,7 @@
   "prCreation": "immediate",
   "automerge": true,
   "automergeType": "auto",
-  "platformAutomerge": true,
+  "platformAutomerge": false,
   "internalChecksFilter": "strict",
   "ignoreTests": false,
   "rebaseWhen": "auto",
