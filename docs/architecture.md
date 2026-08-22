@@ -1,6 +1,6 @@
 # lumiscrape システムアーキテクチャ
 
-本ドキュメントでは、`lumiscrape` の全体アーキテクチャ、データフロー、コンポーネント構成を解説します。
+本ドキュメントでは、`lumiscrape` の全体アーキテクチャ、レイヤード設計（Clean Architecture）、データフロー、コンポーネント構成を解説します。
 
 ---
 
@@ -8,56 +8,81 @@
 
 ```mermaid
 flowchart TD
-    subgraph "Admin & Control Layer"
-        User["User / Developer"]
-        WebUI["Go + HTMX Web UI (pkg/web)"]
-        StateDB[("Site Registry / State DB")]
-        User -->|"Register URL / Trigger"| WebUI
-        WebUI -->|"CRUD Site Rules"| StateDB
+    subgraph "Orchestration & UI Layer"
+        Estela["Estela Platform (K8s Jobs & Web UI)"]
+        CronSched["Estela Scheduler"]
+        Estela -->|"Trigger Job"| ScrapyContainer["Scrapy Crawler Job (src/scrapers)"]
     end
 
-    subgraph "Collection & Ingestion Layer (Runtime)"
-        Scheduler["Scheduler (pkg/scheduler)"]
-        Fetcher["HTTP Client / Fetcher"]
-        MinIO[("MinIO S3 Data Lake (Raw HTML/JSON)")]
-        StateDB -->|"Read Targets & Schedule"| Scheduler
-        Scheduler -->|"Dispatch HTTP GET"| Fetcher
-        Fetcher -->|"Target Websites"| WebTarget["Target Web Pages"]
-        Fetcher -->|"Gzip Stream Upload"| MinIO
-        Fetcher -->|"Update Status"| StateDB
-    end
-
-    subgraph "Parser & Normalization Layer (Runtime)"
-        RuleConfig["YAML Selector Configs"]
-        ParserEngine["Colly Engine (pkg/parser)"]
-        TargetDB[("Normalized Storage / DB")]
-        MinIO -->|"Trigger / Read Raw Data"| ParserEngine
-        RuleConfig -->|"Read Selectors"| ParserEngine
-        ParserEngine -->|"Store Structured JSON"| TargetDB
-    end
-
-    subgraph "LLM-Assisted Rule Tuning Pipeline (Offline / Fallback)"
-        Trafilatura["Trafilatura Clean Pipeline"]
-        LLMEngine["LLM / Gemini API (tools/rule-generator)"]
-        SlackAlert["Slack Alert / Notification"]
+    subgraph "Scraping & Ingestion Layer"
+        ScrapyContainer -->|"HTTP GET"| WebTarget["Target Web Pages"]
+        ScrapyContainer -.->|"Dynamic Render Request"| Browserless["Browserless (Chrome Headless Proxy)"]
+        ScrapyMiddleware["MinIORawStorageMiddleware"]
+        MinIO[("MinIO S3 Data Lake (7-Day ILM)")]
         
-        ParserEngine -->|"On Rule Failure"| SlackAlert
-        MinIO -->|"Fetch Raw HTML"| Trafilatura
-        Trafilatura -->|"Clean Markdown/DOM"| LLMEngine
-        LLMEngine -->|"Generate New Selectors"| RuleConfig
+        ScrapyContainer -->|"Hook Response"| ScrapyMiddleware
+        ScrapyMiddleware -->|"Gzip Upload Raw HTML"| MinIO
+    end
+
+    subgraph "Mechanical Parsing & Master Persistence"
+        Spider["Site Spider (CSS / XPath)"]
+        ValidationPipeline["PydanticValidationPipeline (src/core/schemas)"]
+        PostgresPipeline["PostgresPersistencePipeline (src/infrastructure/db_client)"]
+        PostgresDB[("PostgreSQL Master DB")]
+        
+        ScrapyContainer -->|"Parse Response"| Spider
+        Spider -->|"Yield EventItem"| ValidationPipeline
+        ValidationPipeline -->|"Canonical Record"| PostgresPipeline
+        PostgresPipeline -->|"Upsert Event"| PostgresDB
+    end
+
+    subgraph "Autonomous LLM Fallback (Self-Healing)"
+        LLMFallback["LLM Fallback Module (src/infrastructure/llm_fallback)"]
+        Crawl4AI["Crawl4AI (Sanitize to Markdown)"]
+        GeminiAPI["Gemini API (Structured Outputs)"]
+        Slack["Slack Alert Channel"]
+
+        Spider -->|"On Parse Error / Exception"| LLMFallback
+        LLMFallback -->|"Fetch Raw HTML"| MinIO
+        LLMFallback -->|"Clean DOM"| Crawl4AI
+        Crawl4AI -->|"Markdown Text"| GeminiAPI
+        GeminiAPI -->|"Extracted Canonical JSON"| PostgresDB
+        GeminiAPI -->|"Suggested New Selector"| Slack
     end
 ```
 
 ---
 
-## 2. データフロー
+## 2. レイヤード構成 (Clean Architecture)
 
-1. **URL 登録とスケジュール管理**:
-   - ユーザーは Go + HTMX の管理画面から対象 URL と Cron スケジュールを登録します。
-2. **収集 (Extract & Load)**:
-   - スケジューラーが定期的に HTTP GET を実行し、取得した HTML を gzip 圧縮して MinIO に即時保存します。
-   - 収集レイヤーはパースを行わないため、高速かつ安定して動作します。
-3. **機械的変換 (Transform)**:
-   - パーサーエンジン（Colly）が YAML 設定ファイルに定義されたセレクタ（CSS/XPath）に従い、MinIO 内の HTML を構造化データ（JSON）に変換します。
-4. **LLM アシスト（チューニング＆フォールバック）**:
-   - 新規サイトのルール作成時や、サイト側の構造変更（セレクタ破損）検知時に、Trafilatura でノイズを除去したテキストを LLM に渡し、新しいセレクタ定義を自動生成・提案します。
+```text
+src/
+├── core/                     # 【ドメイン層】Pydantic スキーマ・共通例外 (外部依存なし)
+├── infrastructure/           # 【インフラ層】MinIO, PostgreSQL, Crawl4AI, Gemini API
+└── scrapers/                 # 【アプリケーション層】Scrapy プロジェクト (Spiders, Middlewares, Pipelines)
+```
+
+1. **ドメイン層 (`src/core/`)**:
+   - `schemas.py`: システム共通の `EventSchedule` や `ScrapeMetadata` を定義。
+   - `exceptions.py`: `ParseError`, `StorageError`, `LLMFallbackError` などのカスタム例外を定義。
+2. **インフラ層 (`src/infrastructure/`)**:
+   - `minio_client.py`: Gzip 圧縮ストリームでの MinIO アップロードおよび取得。
+   - `db_client.py`: PostgreSQL への接続および `event_schedules` テーブルへの Upsert。
+   - `llm_fallback/`: `Crawl4AI` による Markdown 化と `Gemini API` による構造化データ抽出およびセレクタ自己修復提案。
+3. **アプリケーション層 (`src/scrapers/`)**:
+   - `scrapy_project/`: Scrapy Spider と設定ファイル群。インフラ層を呼び出して処理を完結。
+
+---
+
+## 3. データフロー
+
+1. **通常フロー (機械処理)**:
+   - Estela が Scrapy Spider を起動。
+   - レスポンス受信時に `middlewares.py` が生 HTML を Gzip 圧縮して MinIO に保存。
+   - Spider が CSS/XPath セレクタでテキストをパース。
+   - `pipelines.py` で Pydantic モデル検証を行い、PostgreSQL に Upsert。
+2. **自律的フォールバックフロー (LLM)**:
+   - セレクタ破損やパース例外を検知した場合、Spider が `infrastructure/llm_fallback` を呼び出す。
+   - `Crawl4AI` で生 HTML のノイズを除去して Markdown に変換。
+   - Gemini API に Pydantic スキーマと共に渡し、Structured Outputs で JSON を抽出して PostgreSQL に保存。
+   - 同時に修復用セレクタ案を添えて Slack にアラートを通知。

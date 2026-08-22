@@ -1,30 +1,30 @@
-# Build stage
-FROM golang:1.23-alpine AS builder
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Cache dependencies
-COPY go.mod go.sum* ./
-RUN go mod download
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv package manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Copy dependency specifications
+COPY pyproject.toml ./
+
+# Install Python dependencies
+RUN uv pip install --system -r pyproject.toml
 
 # Copy source code
-COPY . .
+COPY src/ ./src/
+COPY tools/ ./tools/
 
-# Build static binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s" \
-    -o /lumiscrape ./cmd/lumiscrape
+ENV PYTHONPATH="/app/src"
 
-# Runtime stage (Distroless for ultra-lightweight and secure container)
-FROM gcr.io/distroless/static-debian12:nonroot
-
-WORKDIR /
-
-COPY --from=builder /lumiscrape /lumiscrape
-
-EXPOSE 8080
-
-USER nonroot:nonroot
-
-ENTRYPOINT ["/lumiscrape"]
-CMD ["serve", "--port", "8080", "--host", "0.0.0.0"]
+# Default entrypoint for Scrapy crawler
+WORKDIR /app/src/scrapers/scrapy_project
+ENTRYPOINT ["scrapy"]
+CMD ["list"]

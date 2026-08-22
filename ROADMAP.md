@@ -1,69 +1,66 @@
 # lumiscrape 開発ロードマップ (ROADMAP.md)
 
-本ドキュメントは、薄く堅牢な Web スクレイピング＆データ統合基盤 `lumiscrape` の開発計画および実装フェーズを定義します。
+本ドキュメントは、汎用 Web スクレイピング＆データ統合基盤 `lumiscrape` の開発計画および実装フェーズを定義します。
 
 ---
 
 ## 開発コンセプト
 
-1. **薄く堅牢なアーキテクチャ**: ランタイムは軽量な Go 言語を中心に据え、余分なフレームワークのオーバヘッドを徹底排除。
-2. **LLM をランタイムから分離**: 本番の高スループット処理ではルールベース（CSS/XPath）の高速機械処理パーサーを稼働させ、LLM はオフラインでのルール生成・チューニング支援、および障害時のフォールバック解析に限定。
-3. **データレイク中心の疎結合設計**: 生データ（Raw HTML/JSON）を Gzip 圧縮して即座に S3/MinIO に保存し、収集（Extract/Load）と変換（Transform）の責務を完全分離。
+1. **OSS エコシステムの最大活用**: Estela、Scrapy、Browserless、MinIO などの強力な OSS を組み合わせ、自作コード（車輪の再発明）を最小化。
+2. **Clean Architecture による責務の分離**: ドメイン（型）、インフラ（外部連携）、アプリケーション（クローラー）を明確に分離し、長期的な保守性と拡張性を担保。
+3. **機械処理の高速性と LLM の柔軟性の両立**: 通常時は Scrapy の CSS/XPath による高速バッチ処理を行い、セレクタ破損時のみ Crawl4AI + Gemini API による自己修復フォールバックを発動。
 
 ---
 
 ## フェーズ一覧
 
-### フェーズ 1: 収集・保存層 (Thin Extract & Load)
-生の Web データを確実に取得し、データレイクへ蓄積する最小限のインフラとワーカーを構築。
+### フェーズ 1: インフラ基盤とデータレイクの確立
+Kubernetes 上にデータレイクと実行基盤を構築し、Raw データの蓄積を開始。
 
-- [ ] **MinIO (S3 互換ストレージ) 連携基盤の実装 (`pkg/storage`)**
-  - Gzip 圧縮ストリームでの HTML/JSON 保存
-  - 保存期間（7日間）のライフサイクルルール (ILM) 自動設定
-  - メタデータ（取得日時、HTTP ステータス、元 URL）のタグ付け保存
-- [ ] **軽量 HTTP コレクター・スケジューラーの実装 (`pkg/scheduler`)**
-  - Go `net/http` をベースとした高効率・低レイテンシな非同期フェッチャー
-  - リトライ、バックオフ、タイムアウト、カスタム User-Agent 管理
-  - 死活監視（Healthchecks.io / デッドマンズ・スイッチ）への Ping 連携
-- [ ] **Kubernetes デプロイ基盤の整備 (`k8s/manifests`)**
-  - MinIO Helm チャートおよびスクレイパー単一常駐 Pod のマニフェスト
+- [ ] **MinIO デプロイと ILM 設定 (`k8s/minio`)**
+  - MinIO の Kubernetes マニフェスト作成
+  - 7日間保持後に自動物理削除する ILM (Lifecycle) ルール設定
+- [ ] **Scrapy MinIO Gzip 保存ミドルウェアの実装 (`src/infrastructure/minio_client.py`)**
+  - レスポンスをフックし、Gzip 圧縮ストリームで MinIO へ即時アップロード
+  - メタデータ（URL、ステータス、取得日時）の付与
+- [ ] **PostgreSQL マスター DB 連携 (`src/infrastructure/db_client.py`)**
+  - `event_schedules` テーブルの自動マイグレーションと Upsert ロジック
 
 ---
 
-### フェーズ 2: 管理・監視基盤 (Thin UI & State)
-スクレイピング対象の URL やスケジュールを直感的に管理・監視できる超軽量 UI を構築。
+### フェーズ 2: オーケストレーションと実行環境の統合
+Estela プラットフォームおよび Browserless を導入し、ジョブ管理と動的レンダリングを整備。
 
-- [ ] **Go + HTMX 管理 Web サーバーの実装 (`pkg/web`)**
-  - Go 標準 `net/http` + `html/template` + `HTMX` による SPA ライクな Web UI
-  - `embed.FS` によるテンプレートおよび静的アセットの単一バイナリ内包
-- [ ] **ステート管理・データモデルの実装 (`pkg/database`)**
-  - 対象サイト登録（URL、Cron スケジュール、サイト ID）
-  - 直近の取得結果（成功/失敗、HTTP ステータス、最終実行日時）のステータス管理
-- [ ] **即時実行トリガーとリアルタイム更新**
-  - 手動即時スクレイプボタン（`hx-post`）
-  - ポーリングによるリアルタイム一覧ステータス更新（`hx-get` + `hx-trigger="every 5s"`）
-
----
-
-### フェーズ 3: LLM アシスト型のチューニング環境 (Development / Assist)
-本番環境で動かす機械的パーサーの抽出ルール（YAML）を、LLM を活用して高速に生成するオフライン環境を構築。
-
-- [ ] **データ浄化パイプラインの実装 (`tools/rule-generator`)**
-  - MinIO からの Raw HTML 取得
-  - `Trafilatura` によるメインコンテンツ抽出と不要タグ（ヘッダー/フッター/広告）の除去
-- [ ] **LLM 構造化ルール生成プロンプトと CLI ツール**
-  - ターゲットスキーマ（Pydantic）に基づく構造化抽出（Structured Outputs）
-  - 安定した CSS/XPath セレクタおよび属性抽出ルールの自動生成
-  - 人間によるレビュー (Human-in-the-Loop) と YAML 設定ファイル出力
+- [ ] **Estela プラットフォームのデプロイ (`k8s/estela`)**
+  - Estela API, Web UI, Redis, Celery ワーカーの Kubernetes デプロイ
+  - Scrapy プロジェクトの Estela 連携設定 (`scrapy.cfg`)
+- [ ] **Browserless プロキシ連携 (`k8s/browserless`)**
+  - 動的 SPA サイト用のヘッダ/プロキシミドルウェア整備
+- [ ] **サイト固有 Spider の実装 (`src/scrapers/scrapy_project/spiders/`)**
+  - 対象サイト（例: equal-love 等）の機械的セレクタ Spider 実装
+  - Pydantic バリデーションパイプラインとの連携
 
 ---
 
-### フェーズ 4: 正規化・変換層 (Transform / Mechanical Parser)
-フェーズ 3 で生成したルールに基づき、本番環境で高速にデータを構造化・格納する心臓部を構築。
+### フェーズ 3: 自律的 LLM フォールバックとルール生成基盤
+セレクタ破損時の自動復旧パイプラインと開発支援ツールを構築。
 
-- [ ] **Colly ベースの動的セレクタ評価パーサー (`pkg/parser`)**
-  - YAML 設定に基づく動的パース（`OnHTML` / `ChildText` / `ChildAttr`）
-  - 構造化 JSON への正規化とデータベース/ストレージへの保存
-- [ ] **ルール破損検知と LLM フォールバック通知**
-  - 抽出結果のバリデーション（必須フィールドの欠落、空データ検知）
-  - エラー時の Slack 通知および Trafilatura + LLM による自動再抽出パイプライン連携
+- [ ] **Crawl4AI によるデータ浄化 (`src/infrastructure/llm_fallback/crawl4ai_runner.py`)**
+  - 生 HTML から不要 DOM を除去し、クリーンな Markdown を生成
+- [ ] **Gemini API Structured Outputs による抽出 (`src/infrastructure/llm_fallback/prompt_manager.py`)**
+  - Pydantic スキーマに基づく構造化 JSON 抽出
+  - 1日あたりの呼び出し回数リミッター（ガードレール）
+- [ ] **XPath / CSS セレクタ自動生成ツール (`tools/rule_generator/`)**
+  - 破損アラート検知時の Slack 通知
+  - ローカルで最新 HTML からセレクタ修正案を自動提示する CLI ツール
+
+---
+
+### フェーズ 4: 運用監視と拡張性テスト
+複数サイトへのスケールアウトと運用監視を確立。
+
+- [ ] **Estela ダッシュボードによる運用監視**
+  - ジョブログ、成功/失敗率、所要時間の可視化
+- [ ] **Slack アラート連携**
+  - パース失敗・フォールバック発動時の通知
+- [ ] **10+ サイトへの Spider 拡張と CI/CD パイプライン検証**
